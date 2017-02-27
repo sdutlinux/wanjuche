@@ -6,11 +6,11 @@
 /* Required by event.h. */
 #include <sys/time.h>
 
-#include <cstdlib>
+#include <cstdlib> //free
 #include <cstdio>
-#include <unistd.h>
+#include <unistd.h> //read write close
 #include <cstring> //memset
-#include <fcntl.h>
+#include <fcntl.h> // fcntl
 #include <cerrno>
 #include <err.h>
 
@@ -19,7 +19,12 @@
 /* Libevent. */
 #include <event2/event.h>
 
+#include "thirdparty/http_parser.h"
+
 struct event_base *base = event_base_new();
+
+http_parser *parser = (http_parser*)malloc(sizeof(http_parser));
+http_parser_settings settings;
 
 struct client {
     struct event *ev_read;
@@ -34,33 +39,34 @@ int set_noblock(int fd) {
     flags |= O_NONBLOCK;
     if (fcntl(fd, F_SETFL, flags) < 0)
         return -1;
-
     return 0;
 }
 
 void on_read(int fd, short ev, void *arg) {
     struct client* client = (struct client*) arg;
-    u_char buf[8196];
+    char buf[8196];
     int len,wlen;
     len = read(fd, buf, sizeof(buf));
     if (len == 0) {
         std::cout << "Client sidconnected." << std::endl;
         close(fd);
         event_del(client -> ev_read);
-        free(client);
+        std::free(client);
         return;
     } else if (len < 0) {
         std::cout << "Socket failure, disconnect client:" << std::endl;
         close(fd);
         event_del(client -> ev_read);
-        free(client);
+        std::free(client);
         return;
     }
-
+    http_parser_execute(parser, &settings, buf, len);
+    /*
     wlen = write(fd, buf, len);
     if (wlen < len) {
         std::cout << "Short write, not all data echoed back to client." << std::endl;
     }
+    */
 }
 
 void on_accept(int fd, short ev, void *arg) {
@@ -87,6 +93,51 @@ void on_accept(int fd, short ev, void *arg) {
     printf("Accepted connection from %s\n", inet_ntoa(client_addr.sin_addr));
 }
 
+int u(http_parser*) {}
+int udata(http_parser*,const char*,size_t) {}
+
+int on_message_begin(http_parser* _) {
+    (void)_;
+    printf("\n***MESSAGE BEGIN***\n\n");
+    return 0;
+}
+
+int on_headers_complete(http_parser* _) {
+    (void)_;
+    printf("\n***HEADERS COMPLETE***\n\n");
+    return 0;
+}
+
+int on_message_complete(http_parser* _) {
+    (void)_;
+    printf("\n***MESSAGE COMPLETE***\n\n");
+    return 0;
+}
+
+int on_url(http_parser* _, const char* at, size_t length) {
+    (void)_;
+    printf("Url: %.*s\n", (int)length, at);
+    return 0;
+}
+
+int on_header_field(http_parser* _, const char* at, size_t length) {
+    (void)_;
+    printf("Header field: %.*s\n", (int)length, at);
+    return 0;
+}
+
+int on_header_value(http_parser* _, const char* at, size_t length) {
+    (void)_;
+    printf("Header value: %.*s\n", (int)length, at);
+    return 0;
+}
+
+int on_body(http_parser* _, const char* at, size_t length) {
+    (void)_;
+    printf("Body: %.*s\n", (int)length, at);
+    return 0;
+}
+
 int main(int argc, char* argv[], char* envp[]) {
     int listen_fd;
     struct sockaddr_in listen_addr;
@@ -109,12 +160,19 @@ int main(int argc, char* argv[], char* envp[]) {
         err(1, "listen failed");
     if(set_noblock(listen_fd) < 0)
         err(1, "failed to set server socket to non-blocking");
-
+    settings.on_message_begin = on_message_begin;
+    settings.on_url = on_url;
+    settings.on_header_field = on_header_field;
+    settings.on_header_value = on_header_value;
+    settings.on_headers_complete = on_headers_complete;
+    settings.on_body = on_body;
+    settings.on_message_complete = on_message_complete;
+    http_parser_init(parser, HTTP_REQUEST);
+    parser -> data = (void*)&listen_fd;
     struct event *ev_accept;
     ev_accept = event_new(base,listen_fd,EV_READ|EV_PERSIST,on_accept,nullptr);
 
     event_add(ev_accept,nullptr);
     event_base_dispatch(base);
     return 0;
-
 }
