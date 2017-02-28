@@ -18,9 +18,12 @@ public:
     static void worker_exit_signal(evutil_socket_t signo, short event, void *arg);
     typedef std::unique_ptr<event_base,EventBaseDeleter> unique_event_base;
     typedef std::unique_ptr<event,EventDeleter> unique_event;
+    typedef std::map<evutil_socket_t, Connection*> ConnectionMap;
     Master *master;
     unique_event_base w_base;
     unique_event w_exit_event;
+    Listener            listener;
+    ConnectionMap       con_map;
 
     std::string s_inbuf;
     std::string s_intmp;
