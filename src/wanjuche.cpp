@@ -96,44 +96,37 @@ void on_accept(int fd, short ev, void *arg) {
 int u(http_parser*) {}
 int udata(http_parser*,const char*,size_t) {}
 
-int on_message_begin(http_parser* _) {
-    (void)_;
+int on_message_begin(http_parser*) {
     printf("\n***MESSAGE BEGIN***\n\n");
     return 0;
 }
 
-int on_headers_complete(http_parser* _) {
-    (void)_;
+int on_headers_complete(http_parser*) {
     printf("\n***HEADERS COMPLETE***\n\n");
     return 0;
 }
 
-int on_message_complete(http_parser* _) {
-    (void)_;
+int on_message_complete(http_parser*) {
     printf("\n***MESSAGE COMPLETE***\n\n");
     return 0;
 }
 
-int on_url(http_parser* _, const char* at, size_t length) {
-    (void)_;
+int on_url(http_parser*, const char* at, size_t length) {
     printf("Url: %.*s\n", (int)length, at);
     return 0;
 }
 
-int on_header_field(http_parser* _, const char* at, size_t length) {
-    (void)_;
+int on_header_field(http_parser*, const char* at, size_t length) {
     printf("Header field: %.*s\n", (int)length, at);
     return 0;
 }
 
-int on_header_value(http_parser* _, const char* at, size_t length) {
-    (void)_;
+int on_header_value(http_parser*, const char* at, size_t length) {
     printf("Header value: %.*s\n", (int)length, at);
     return 0;
 }
 
-int on_body(http_parser* _, const char* at, size_t length) {
-    (void)_;
+int on_body(http_parser*, const char* at, size_t length) {
     printf("Body: %.*s\n", (int)length, at);
     return 0;
 }
