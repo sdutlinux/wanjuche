@@ -4,14 +4,15 @@
 
 #include<iostream>
 
-Listener::Listener(const std::string &ip, unsigned short port)
+Listener::Listener(const std::string &ip, unsigned short port):
+    listen_event(nullptr),
+    listen_worker(nullptr),
+    cnt_connection(0)
 {
     //ipv4
     listen_addr.sin_family      = AF_INET;
     listen_addr.sin_addr.s_addr = inet_addr(ip.c_str());
     listen_addr.sin_port        = htons(port);
-    listen_event                = NULL;
-    cnt_connection  = 0;
     std::cout << "Init listener" << std::endl;
 }
 
@@ -26,7 +27,7 @@ Listener::~Listener()
     std::cout << "Listener closed" << std::endl;
 }
 
-bool Listener::InitListener(Worker *worker)
+bool Listener::init_listener(Worker *worker)
 {
     if (-1 == (listen_sockfd = socket(AF_INET, SOCK_STREAM, 0)))
     {
@@ -58,14 +59,14 @@ bool Listener::InitListener(Worker *worker)
  * 因为InitListener是在fork之前调用的，此时
  * worker的w_base还未赋值；
  */
-void Listener::AddListenEvent()
+void Listener::add_listen_event()
 {
     //echo先从客户端读取数据，故此处监听读
-    listen_event  = event_new(listen_worker->w_base, listen_sockfd, EV_READ | EV_PERSIST, Listener::ListenEventCallback, this);
+    listen_event  = event_new(listen_worker->w_base, listen_sockfd, EV_READ | EV_PERSIST, Listener::listen_event_callback, this);
     event_add(listen_event, NULL);
 }
 
-void Listener::ListenEventCallback(evutil_socket_t sockfd, short event, void *arg)
+void Listener::listen_event_callback(evutil_socket_t sockfd, short event, void *arg)
 {
     evutil_socket_t con_fd;
     struct sockaddr_in con_addr;
@@ -76,7 +77,7 @@ void Listener::ListenEventCallback(evutil_socket_t sockfd, short event, void *ar
         return ;
     }
 
-    Listener *listener  = (Listener*)arg;
+    Worker *worker  = (Worker*)arg;
     Connection *con     = new Connection();
 
     con->con_sockfd = con_fd;

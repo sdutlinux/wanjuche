@@ -2,11 +2,8 @@
 #define _CONNECTION_H
 
 #include <string>
-#include <queue>
-
-#include "event2/event.h"
-#include "event2/util.h"
-
+#include <memory>
+#include "mylibevent.h"
 #include "util.h"
 
 class Worker;
@@ -17,28 +14,32 @@ public:
     Connection();
     ~Connection();
 
-    bool InitConnection(Worker *worker);
+    Connection(const Connection&) = delete;
+    Connection& operator=(const Connection&) = delete;
 
-    static void ConEventCallback(evutil_socket_t fd, short event, void *arg);
+    bool init_connection(Worker *worker);
 
-    Worker             *con_worker;
+    static void con_event_callback(evutil_socket_t fd, short event, void *arg);
+    typedef std::unique_ptr<event,EventDeleter> unique_event;
 
-    evutil_socket_t     con_sockfd;
-    struct event       *read_event;
-    struct event       *write_event;
+    Worker *con_worker;
 
-    std::string         con_inbuf;
-    std::string         con_intmp;
-    std::string         con_outbuf;
+    evutil_socket_t con_sockfd;
+    unique_event read_event;
+    unique_event write_event;
 
-    static void FreeConnection(Connection *con);
+    std::string con_inbuf;
+    std::string con_intmp;
+    std::string con_outbuf;
+
+    static void free_connection(Connection *con);
 
 
 private:
-    void WantRead();
-    void NotWantRead();
-    void WantWrite();
-    void NotWantWrite();
+    void want_read();
+    void not_want_read();
+    void want_write();
+    void not_want_write();
 
 };
 

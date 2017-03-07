@@ -7,12 +7,12 @@
 
 #include <iostream>
 
-Master::Master() :
-    m_base(event_base_new()),
-    m_exit_event(evsignal_new(m_base.get(), SIGINT, Master::master_exit_signal, m_base.get())),
-    m_chld_event(evsignal_new(m_base.get(), SIGCHLD, Master::master_chld_signal, this)),
-    nums_of_child(4),
-    worker(this)
+Master::Master(int n_child) :
+    m_base(nullptr),
+    m_exit_event(nullptr),
+    m_chld_event(nullptr),
+    nums_of_child(n_child),
+    worker(nullptr)
 {
 }
 
@@ -34,7 +34,8 @@ bool Master::start_master()
                 return false;
             case 0:
             {
-                worker.run(); //worker子进程入口
+                worker.reset(new Worker(ip,port));
+                worker -> run(); //worker子进程入口
                 return true;
             }
             default:
@@ -42,6 +43,10 @@ bool Master::start_master()
                 break;
         }
     }
+
+    m_base.reset(event_base_new());
+    m_exit_event.reset(evsignal_new(m_base.get(), SIGINT, Master::master_exit_signal, m_base.get()));
+    m_chld_event.reset(evsignal_new(m_base.get(), SIGCHLD, Master::master_chld_signal, this));
 
     //Master监听信号，一个用于退出，一个用于处理结束的子进程
     evsignal_add(m_exit_event.get(), nullptr);
